@@ -1,13 +1,86 @@
+import {
+  DeleteLogGroupRequest, DescribeLogGroupsRequest, DescribeLogGroupsResponse, PutRetentionPolicyRequest
+} from 'aws-sdk/clients/cloudwatchlogs';
 import Serverless from 'serverless';
 import Plugin from 'serverless/classes/Plugin';
+import Aws from 'serverless/plugins/aws/provider/awsProvider';
 
 export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
   public hooks: Plugin.Hooks;
+  private provider: Aws;
 
-  constructor(serverless: Serverless) {
+  constructor(private readonly serverless: Serverless) {
     this.hooks = {
+      'after:remove:remove': async () => this.afterRemove(),
+      'after:deploy:deploy': async () => this.afterDeploy()
     };
+    this.provider = serverless.getProvider('aws');
 
     serverless.cli.log('serverless-api-gateway-execution-log-manager initialized');
   }
+
+  private async afterRemove(): Promise<void> {
+    const executionLogGroupName = await this.getApiGatewayExecutionLogGroupName();
+    if (executionLogGroupName) {
+      this.serverless.cli.log(`${executionLogGroupName} log group is being removed...`);
+      await this.deleteLogGroup(executionLogGroupName);
+    } else {
+      this.serverless.cli.log('API Gateway Execution log group not found, skipping update');
+    }
+  }
+
+  private async afterDeploy(): Promise<void> {
+    const executionLogGroupName = await this.getApiGatewayExecutionLogGroupName();
+    if (executionLogGroupName) {
+      this.serverless.cli.log(`${executionLogGroupName} log group is having its retention policy updated...`);
+      await this.updateLogGroupRetention(executionLogGroupName);
+    } else {
+      this.serverless.cli.log('API Gateway Execution log group not found, skipping retention policy update');
+    }
+  }
+
+  private async getApiGatewayExecutionLogGroupName(): Promise<string | undefined> {
+    const params: DescribeLogGroupsRequest = {
+      logGroupNamePrefix: 'API-Gateway-Execution-Logs_'
+    };
+    const executionLogGroupSuffix = `/${this.provider.getStage()}`;
+
+    while (true) {
+      const result: DescribeLogGroupsResponse = await this.provider.request('CloudWatchLogs', 'describeLogGroups', params);
+
+      // Execution logs have their API Gateway stage name as suffix
+      const executionLogGroup = result.logGroups?.find(lg => lg.logGroupName?.endsWith(executionLogGroupSuffix));
+      if (executionLogGroup) {
+        return executionLogGroup.logGroupName;
+      }
+
+      if (result.nextToken) {
+        params.nextToken = result.nextToken;
+      } else {
+        // no more data, stop
+        break;
+      }
+    }
+
+    return undefined;
+  }
+
+  private async deleteLogGroup(name: string): Promise<void> {
+    const params: DeleteLogGroupRequest = {
+      logGroupName: name
+    };
+    await this.provider.request('CloudWatchLogs', 'deleteLogGroup', params);
+  }
+
+  private async updateLogGroupRetention(name: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const retentionDays = (this.provider as any).getLogRetentionInDays() || 14; // 14 is the default in Serverless, it should not happen that there is no value
+    const params: PutRetentionPolicyRequest = {
+      logGroupName: name,
+      retentionInDays: retentionDays
+    };
+    await this.provider.request('CloudWatchLogs', 'putRetentionPolicy', params);
+  }
 }
+
+module.exports = ServerlessApiGatewayExecutionLogManager;
