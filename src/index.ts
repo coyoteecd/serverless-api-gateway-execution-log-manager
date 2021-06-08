@@ -1,17 +1,24 @@
 import {
   DeleteLogGroupRequest, DescribeLogGroupsRequest, DescribeLogGroupsResponse, PutRetentionPolicyRequest
 } from 'aws-sdk/clients/cloudwatchlogs';
+import {
+  GetRestApisRequest, RestApis
+} from 'aws-sdk/clients/apigateway';
 import Serverless from 'serverless';
 import Plugin from 'serverless/classes/Plugin';
 import Aws from 'serverless/plugins/aws/provider/awsProvider';
+// import
 
 export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
   public hooks: Plugin.Hooks;
   private provider: Aws;
+  private executionLogGroupName: string | undefined;
 
   constructor(private readonly serverless: Serverless) {
     this.hooks = {
+      'before:remove:remove': async () => this.beforeRemove(),
       'after:remove:remove': async () => this.afterRemove(),
+
       'after:deploy:deploy': async () => this.afterDeploy()
     };
     this.provider = serverless.getProvider('aws');
@@ -19,8 +26,12 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
     serverless.cli.log('serverless-api-gateway-execution-log-manager initialized');
   }
 
+  private async beforeRemove(): Promise<void> {
+    this.executionLogGroupName = await this.getApiGatewayExecutionLogGroupName();
+  }
+
   private async afterRemove(): Promise<void> {
-    const executionLogGroupName = await this.getApiGatewayExecutionLogGroupName();
+    const executionLogGroupName = this.executionLogGroupName;
     if (executionLogGroupName) {
       this.serverless.cli.log(`${executionLogGroupName} log group is being removed...`);
       await this.deleteLogGroup(executionLogGroupName);
@@ -39,26 +50,52 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
     }
   }
 
+  private async getRestApiId(): Promise<string | undefined> {
+    // const externalRestApiId = this.provider.getApiGatewayRestApiId();
+    const apiGatewayName = this.provider.naming.getApiGatewayName();
+    this.serverless.cli.log(`Getting rest api id of api gateway ${apiGatewayName} ...`);
+    const params: GetRestApisRequest = {
+      limit: 500
+    };
+    while (true) {
+      const result: RestApis = await this.provider.request('APIGateway', 'getRestApis', params);
+      const apiGateway = result.items?.find(agw => agw.name == apiGatewayName);
+      if (apiGateway) {
+        return apiGateway.id;
+      }
+      if (result.position) {
+        params.position = result.position;
+      } else {
+        // no more data, stop
+        break;
+      }
+    }
+    return undefined;
+  }
+
   private async getApiGatewayExecutionLogGroupName(): Promise<string | undefined> {
     const params: DescribeLogGroupsRequest = {
       logGroupNamePrefix: 'API-Gateway-Execution-Logs_'
     };
-    const executionLogGroupSuffix = `/${this.provider.getStage()}`;
+    const restApiId = await this.getRestApiId()
+    if (restApiId) {
+      const executionLogGroupSuffix = `${restApiId}/${this.provider.getStage()}`;
 
-    while (true) {
-      const result: DescribeLogGroupsResponse = await this.provider.request('CloudWatchLogs', 'describeLogGroups', params);
+      while (true) {
+        const result: DescribeLogGroupsResponse = await this.provider.request('CloudWatchLogs', 'describeLogGroups', params);
 
-      // Execution logs have their API Gateway stage name as suffix
-      const executionLogGroup = result.logGroups?.find(lg => lg.logGroupName?.endsWith(executionLogGroupSuffix));
-      if (executionLogGroup) {
-        return executionLogGroup.logGroupName;
-      }
+        // Execution logs have their API Gateway stage name as suffix
+        const executionLogGroup = result.logGroups?.find(lg => lg.logGroupName?.endsWith(executionLogGroupSuffix));
+        if (executionLogGroup) {
+          return executionLogGroup.logGroupName;
+        }
 
-      if (result.nextToken) {
-        params.nextToken = result.nextToken;
-      } else {
-        // no more data, stop
-        break;
+        if (result.nextToken) {
+          params.nextToken = result.nextToken;
+        } else {
+          // no more data, stop
+          break;
+        }
       }
     }
 
