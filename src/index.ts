@@ -72,28 +72,17 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
   }
 
   private async getApiGatewayExecutionLogGroupName(): Promise<string | undefined> {
-    const params: DescribeLogGroupsRequest = {
-      logGroupNamePrefix: 'API-Gateway-Execution-Logs_'
-    };
     const restApiId = await this.getRestApiId();
     if (restApiId) {
-      const executionLogGroupSuffix = `${restApiId}/${this.provider.getStage()}`;
+      const executionLogGroupName = `API-Gateway-Execution-Logs_${restApiId}/${this.provider.getStage()}`;
 
-      while (true) {
-        const result: DescribeLogGroupsResponse = await this.provider.request('CloudWatchLogs', 'describeLogGroups', params);
-
-        // Execution logs have their API Gateway stage name as suffix
-        const executionLogGroup = result.logGroups?.find(lg => lg.logGroupName?.endsWith(executionLogGroupSuffix));
-        if (executionLogGroup) {
-          return executionLogGroup.logGroupName;
-        }
-
-        if (result.nextToken) {
-          params.nextToken = result.nextToken;
-        } else {
-          // no more data, stop
-          break;
-        }
+      // AWS SDK does not have a getLogGroupRequest, so we test that the log group exists via a describe request
+      const params: DescribeLogGroupsRequest = {
+        logGroupNamePrefix: executionLogGroupName
+      };
+      const result: DescribeLogGroupsResponse = await this.provider.request('CloudWatchLogs', 'describeLogGroups', params);
+      if (result.logGroups?.find(lg => lg.logGroupName === executionLogGroupName)) {
+        return executionLogGroupName;
       }
     }
 

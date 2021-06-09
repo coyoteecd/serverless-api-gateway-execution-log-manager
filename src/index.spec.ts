@@ -1,4 +1,6 @@
-import { CloudWatchLogs, APIGateway } from 'aws-sdk';
+import { APIGateway, CloudWatchLogs } from 'aws-sdk';
+import { RestApis } from 'aws-sdk/clients/apigateway';
+import { DescribeLogGroupsResponse } from 'aws-sdk/clients/cloudwatchlogs';
 import Serverless from 'serverless';
 import Aws from 'serverless/plugins/aws/provider/awsProvider';
 import ServerlessApiGatewayExecutionLogManager from './index';
@@ -147,60 +149,79 @@ describe('ServerlessApiGatewayExecutionLogManager', () => {
     expect(cliLogSpy).toHaveBeenCalledWith(jasmine.stringMatching('log group is having its retention policy updated'));
   });
 
-  it('should skip deleting the API Gateway execution log group retention when removing the stack and the log group does not exist', async () => {
+  it('should skip deleting the API Gateway execution log group when removing the stack while there are no API Gateway execution logs', async () => {
     const requestSpy = jasmine.createSpy('request')
-      .withArgs('CloudWatchLogs', 'deleteLogGroup', jasmine.anything()).and.resolveTo();
-    const cliLogSpy = jasmine.createSpy();
-    const serverless = jasmine.createSpyObj<Serverless>({
-      getProvider: ({
-        request: requestSpy,
-        getStage: jasmine.createSpy().and.returnValue('thor')
-      } as unknown as Aws),
-    }, {
-      cli: ({ log: cliLogSpy })
-    });
-
-    const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    (plugin as any).executionLogGroupName = undefined;
-    /* eslint-enable @typescript-eslint/no-explicit-any */
-
-    // Invoke the actual deploy function
-    const removeFn = plugin.hooks['after:remove:remove'];
-    await expectAsync(removeFn()).toBeResolved();
-
-    expect(requestSpy).not.toHaveBeenCalledWith('CloudWatchLogs', 'deleteLogGroup', jasmine.anything());
-    expect(cliLogSpy).toHaveBeenCalledWith(jasmine.stringMatching('API Gateway Execution log group not found'));
-  });
-
-  it('should delete the API Gateway execution log group retention when removing the stack', async () => {
-    const requestSpy = jasmine.createSpy('request')
+      .withArgs('APIGateway', 'getRestApis', jasmine.anything()).and.resolveTo({
+        items: [{ name: 'APIGW', id: 'abcde' }]
+      } as RestApis)
+      .withArgs('CloudWatchLogs', 'describeLogGroups', jasmine.anything()).and.resolveTo({
+        logGroups: []
+      } as DescribeLogGroupsResponse)
       .withArgs('CloudWatchLogs', 'deleteLogGroup', jasmine.anything()).and.resolveTo();
     const cliLogSpy = jasmine.createSpy();
     const serverless = jasmine.createSpyObj<Serverless>({
       getProvider: ({
         request: requestSpy,
         getStage: jasmine.createSpy().and.returnValue('thor'),
-        logRetentionInDays: 5
+        naming: {
+          getApiGatewayName: jasmine.createSpy().and.returnValue('APIGW')
+        }
+      } as unknown as Aws),
+    }, {
+      cli: ({ log: cliLogSpy })
+    });
+
+    const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
+
+    // Invoke the before/after remove hooks in the same order as Serverless does
+    const beforeRemoveFn = plugin.hooks['before:remove:remove'];
+    const removeFn = plugin.hooks['after:remove:remove'];
+    await expectAsync(beforeRemoveFn()).toBeResolved();
+    await expectAsync(removeFn()).toBeResolved();
+
+    expect(requestSpy).not.toHaveBeenCalledWith('CloudWatchLogs', 'deleteLogGroup', jasmine.anything());
+    expect(cliLogSpy).toHaveBeenCalledWith(jasmine.stringMatching('API Gateway Execution log group not found'));
+  });
+
+  it('should delete the correct API Gateway execution log group retention when removing the stack', async () => {
+    const requestSpy = jasmine.createSpy('request')
+      .withArgs('APIGateway', 'getRestApis', jasmine.anything()).and.resolveTo({
+        items: [{ name: 'APIGW', id: '8e24r4xy0g' }]
+      } as RestApis)
+      .withArgs('CloudWatchLogs', 'describeLogGroups', jasmine.anything()).and.resolveTo({
+        logGroups: [
+          { logGroupName: 'API-Gateway-Execution-Logs_8e24r4xy0g/thor' }
+        ]
+      } as DescribeLogGroupsResponse)
+      .withArgs('CloudWatchLogs', 'deleteLogGroup', jasmine.anything()).and.resolveTo();
+    const cliLogSpy = jasmine.createSpy();
+    const serverless = jasmine.createSpyObj<Serverless>({
+      getProvider: ({
+        request: requestSpy,
+        getStage: jasmine.createSpy().and.returnValue('thor'),
+        naming: {
+          getApiGatewayName: jasmine.createSpy().and.returnValue('APIGW')
+        }
       } as unknown as Aws)
     }, {
       cli: ({ log: cliLogSpy })
     });
 
     const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    (plugin as any).executionLogGroupName = 'API-Gateway-Execution-Logs_8e24r4xy0g/thor';
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    // Invoke the actual deploy function
+    // Invoke the before/after remove hooks in the same order as Serverless does
+    const beforeRemoveFn = plugin.hooks['before:remove:remove'];
+    const removeFn = plugin.hooks['after:remove:remove'];
+    await expectAsync(beforeRemoveFn()).toBeResolved();
+    await expectAsync(removeFn()).toBeResolved();
 
-    const afterRemoveFn = plugin.hooks['after:remove:remove'];
-    await expectAsync(afterRemoveFn()).toBeResolved();
-
-    expect(requestSpy).toHaveBeenCalledWith('CloudWatchLogs', 'deleteLogGroup', jasmine.objectContaining<CloudWatchLogs.DeleteLogGroupRequest>({
-      logGroupName: jasmine.stringMatching('thor')
-    }));
-    expect(cliLogSpy).toHaveBeenCalledWith(jasmine.stringMatching('log group is being removed'));
+    expect(requestSpy).toHaveBeenCalledTimes(3);
+    expect(requestSpy.calls.argsFor(2)).toEqual([
+      'CloudWatchLogs', 'deleteLogGroup',
+      jasmine.objectContaining<CloudWatchLogs.DeleteLogGroupRequest>({
+        logGroupName: 'API-Gateway-Execution-Logs_8e24r4xy0g/thor'
+      })
+    ]);
   });
 
 });
