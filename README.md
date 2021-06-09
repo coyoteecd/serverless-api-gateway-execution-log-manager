@@ -5,7 +5,12 @@
 [![build status][icon-ci]][link-ci]
 [![npm version][icon-npm]][link-npm]
 
-This Serverless Framework plugin manages the API Gateway execution log groups automatically created in CloudWatch when [execution logging](https://www.serverless.com/framework/docs/providers/aws/events/apigateway#logs) is enabled in `serverless.yml`. When enabling these logs, API Gateway automatically creates a CloudWatch log group named `API-Gateway-Execution-Logs_[uniqueId]/[stage]`. This log group is not part of the CloudFormation stack deployed by Serverless Framework. 
+This Serverless Framework plugin manages the API Gateway execution log groups automatically created in CloudWatch when [execution logging](https://www.serverless.com/framework/docs/providers/aws/events/apigateway#logs) is enabled in `serverless.yml`. When enabling these logs, API Gateway automatically creates a CloudWatch log group named `API-Gateway-Execution-Logs_[RestApiId]/[stage]`. This log group is not part of the CloudFormation stack deployed by Serverless Framework.
+
+The plugin does the following:
+
+- applies the log retention policy configured in serverless.yml (by default the API Gateway execution log group is configured with Expire=Never)
+- deletes the log group upon stack removal
 
 ## Installation
 
@@ -17,18 +22,18 @@ npm install serverless-api-gateway-execution-log-manager --save-dev
 
 Add the following to your `serverless.yml`:
 
-Add the following to your `serverless.yml`:
-
 ```yml
 plugins:
   - serverless-api-gateway-execution-log-manager
-  
+
 provider:
   logs:
     restApi:
       level: INFO
-      executionLogging: true      
+      executionLogging: true
       fullExecutionData: true
+
+  logRetentionInDays: 7 # also applied to the execution logs with the plugin
 ```
 
 This plugin does not have any configuration options (yet).
