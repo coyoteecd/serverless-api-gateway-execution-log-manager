@@ -18,7 +18,6 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
     this.hooks = {
       'before:remove:remove': async () => this.beforeRemove(),
       'after:remove:remove': async () => this.afterRemove(),
-
       'after:deploy:deploy': async () => this.afterDeploy()
     };
     this.provider = serverless.getProvider('aws');
