@@ -161,9 +161,9 @@ describe('ServerlessApiGatewayExecutionLogManager', () => {
     });
 
     const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
-    /* eslint-disable @typescript-eslint/no-explicit-any*/
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     (plugin as any).executionLogGroupName = undefined;
-    /* eslint-enable @typescript-eslint/no-explicit-any*/
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // Invoke the actual deploy function
     const removeFn = plugin.hooks['after:remove:remove'];
@@ -188,9 +188,9 @@ describe('ServerlessApiGatewayExecutionLogManager', () => {
     });
 
     const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
-    /* eslint-disable @typescript-eslint/no-explicit-any*/
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     (plugin as any).executionLogGroupName = 'API-Gateway-Execution-Logs_8e24r4xy0g/thor';
-    /* eslint-enable @typescript-eslint/no-explicit-any*/
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // Invoke the actual deploy function
 
