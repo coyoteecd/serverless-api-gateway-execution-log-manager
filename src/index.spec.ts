@@ -1,5 +1,4 @@
-import { CloudWatchLogs } from 'aws-sdk';
-import { APIGateway } from 'aws-sdk';
+import { CloudWatchLogs, APIGateway } from 'aws-sdk';
 import Serverless from 'serverless';
 import Aws from 'serverless/plugins/aws/provider/awsProvider';
 import ServerlessApiGatewayExecutionLogManager from './index';
@@ -162,8 +161,9 @@ describe('ServerlessApiGatewayExecutionLogManager', () => {
     });
 
     const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
-    (plugin as any).executionLogGroupName = undefined
-
+    /* eslint-disable @typescript-eslint/no-explicit-any*/
+    (plugin as any).executionLogGroupName = undefined;
+    /* eslint-enable @typescript-eslint/no-explicit-any*/
 
     // Invoke the actual deploy function
     const removeFn = plugin.hooks['after:remove:remove'];
@@ -188,7 +188,9 @@ describe('ServerlessApiGatewayExecutionLogManager', () => {
     });
 
     const plugin = new ServerlessApiGatewayExecutionLogManager(serverless);
-    (plugin as any).executionLogGroupName = 'API-Gateway-Execution-Logs_8e24r4xy0g/thor'
+    /* eslint-disable @typescript-eslint/no-explicit-any*/
+    (plugin as any).executionLogGroupName = 'API-Gateway-Execution-Logs_8e24r4xy0g/thor';
+    /* eslint-enable @typescript-eslint/no-explicit-any*/
 
     // Invoke the actual deploy function
 
