@@ -31,10 +31,9 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
   }
 
   private async afterRemove(): Promise<void> {
-    const executionLogGroupName = this.executionLogGroupName;
-    if (executionLogGroupName) {
-      this.serverless.cli.log(`${executionLogGroupName} log group is being removed...`);
-      await this.deleteLogGroup(executionLogGroupName);
+    if (this.executionLogGroupName) {
+      this.serverless.cli.log(`${this.executionLogGroupName} log group is being removed...`);
+      await this.deleteLogGroup(this.executionLogGroupName);
     } else {
       this.serverless.cli.log('API Gateway Execution log group not found, skipping update');
     }
@@ -59,7 +58,7 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
     };
     while (true) {
       const result: RestApis = await this.provider.request('APIGateway', 'getRestApis', params);
-      const apiGateway = result.items?.find(agw => agw.name == apiGatewayName);
+      const apiGateway = result.items?.find(agw => agw.name === apiGatewayName);
       if (apiGateway) {
         return apiGateway.id;
       }
@@ -77,7 +76,7 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
     const params: DescribeLogGroupsRequest = {
       logGroupNamePrefix: 'API-Gateway-Execution-Logs_'
     };
-    const restApiId = await this.getRestApiId()
+    const restApiId = await this.getRestApiId();
     if (restApiId) {
       const executionLogGroupSuffix = `${restApiId}/${this.provider.getStage()}`;
 
