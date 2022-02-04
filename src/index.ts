@@ -49,7 +49,6 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
   }
 
   private async getRestApiId(): Promise<string | undefined> {
-    // const externalRestApiId = this.provider.getApiGatewayRestApiId();
     const apiGatewayName = this.provider.naming.getApiGatewayName();
     this.serverless.cli.log(`Getting rest api id of api gateway ${apiGatewayName} ...`);
     const params: GetRestApisRequest = {

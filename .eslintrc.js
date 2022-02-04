@@ -39,6 +39,12 @@ module.exports = {
     'import/extensions': 'off',
     'import/no-unresolved': 'off',
 
+    // meh
+    'no-restricted-syntax': 'off',
+    'no-plusplus': 'off',
+    'object-curly-newline': 'off',
+    'no-use-before-define': 'off',
+
     // serverless chokes otherwise
     'import/no-import-module-exports': 'off',
 
