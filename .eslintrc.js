@@ -39,9 +39,12 @@ module.exports = {
     'import/extensions': 'off',
     'import/no-unresolved': 'off',
 
-    "@typescript-eslint/explicit-function-return-type": ["error", {
-      "allowExpressions": true,
-      "allowTypedFunctionExpressions": true
+    // serverless chokes otherwise
+    'import/no-import-module-exports': 'off',
+
+    '@typescript-eslint/explicit-function-return-type': ['error', {
+      allowExpressions: true,
+      allowTypedFunctionExpressions: true
     }]
   }
 };
