@@ -14,9 +14,19 @@ The plugin does the following:
 
 ## Installation
 
-```
+```sh
 npm install serverless-api-gateway-execution-log-manager --save-dev
 ```
+
+### Compatibility with Serverless Framework
+
+Version 1.1.1 is compatible with Serverless Framework v3, but it uses the legacy logging interface. Version 2.0.0 and later uses the [new logging interface](https://www.serverless.com/framework/docs/guides/plugins/cli-output).
+
+|serverless-api-gateway-execution-log-manager|Serverless Framework|
+|---|---|
+|≤ v1.1.0|v1.x, v2.x|
+|v1.1.1|v1.x, v2.x, v3.x|
+|≥ v2.0.0|v3.x|
 
 ## Usage
 

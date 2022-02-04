@@ -4,25 +4,28 @@ import {
 import {
   GetRestApisRequest, RestApis
 } from 'aws-sdk/clients/apigateway';
-import Serverless from 'serverless';
-import Plugin from 'serverless/classes/Plugin';
+import Serverless, { Options } from 'serverless';
+import Plugin, { Logging } from 'serverless/classes/Plugin';
 import Aws from 'serverless/plugins/aws/provider/awsProvider';
 // import
 
 export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
   public hooks: Plugin.Hooks;
   private provider: Aws;
+  private log: Logging['log'];
   private executionLogGroupName: string | undefined;
 
-  constructor(private readonly serverless: Serverless) {
+  constructor(serverless: Serverless, _options: Options, logging: Logging) {
+    this.provider = serverless.getProvider('aws');
+    this.log = logging.log;
+
     this.hooks = {
       'before:remove:remove': async () => this.beforeRemove(),
       'after:remove:remove': async () => this.afterRemove(),
       'after:deploy:deploy': async () => this.afterDeploy()
     };
-    this.provider = serverless.getProvider('aws');
 
-    serverless.cli.log('serverless-api-gateway-execution-log-manager initialized');
+    this.log.verbose('serverless-api-gateway-execution-log-manager initialized');
   }
 
   private async beforeRemove(): Promise<void> {
@@ -31,26 +34,27 @@ export default class ServerlessApiGatewayExecutionLogManager implements Plugin {
 
   private async afterRemove(): Promise<void> {
     if (this.executionLogGroupName) {
-      this.serverless.cli.log(`${this.executionLogGroupName} log group is being removed...`);
+      this.log.verbose(`${this.executionLogGroupName} log group is being removed...`);
       await this.deleteLogGroup(this.executionLogGroupName);
     } else {
-      this.serverless.cli.log('API Gateway Execution log group not found, skipping update');
+      this.log.warning('API Gateway Execution log group not found, skipping update');
     }
   }
 
   private async afterDeploy(): Promise<void> {
     const executionLogGroupName = await this.getApiGatewayExecutionLogGroupName();
     if (executionLogGroupName) {
-      this.serverless.cli.log(`${executionLogGroupName} log group is having its retention policy updated...`);
+      this.log.verbose(`${executionLogGroupName} log group is having its retention policy updated...`);
       await this.updateLogGroupRetention(executionLogGroupName);
     } else {
-      this.serverless.cli.log('API Gateway Execution log group not found, skipping retention policy update');
+      this.log.warning('API Gateway Execution log group not found, skipping retention policy update');
     }
   }
 
   private async getRestApiId(): Promise<string | undefined> {
     const apiGatewayName = this.provider.naming.getApiGatewayName();
-    this.serverless.cli.log(`Getting rest api id of api gateway ${apiGatewayName} ...`);
+    this.log.verbose(`Getting rest api id of api gateway ${apiGatewayName} ...`);
+
     const params: GetRestApisRequest = {
       limit: 500
     };
