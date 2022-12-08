@@ -1,6 +1,6 @@
 {
   "name": "serverless-api-gateway-execution-log-manager",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Serverless plugin for setting log retention and deleting API Gateway execution logs during stack update/removal",
   "main": "dist/index.js",
   "scripts": {
